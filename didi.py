@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+import math
 
 
 
@@ -172,4 +173,66 @@ class transformer():
         concatGapDf = pd.concat(dfList)
 
         return concatGapDf
+
+
+class predictor():
+    '''predict gap values by district and time_slot
+
+    '''
+    def predict_by_average(self, *gapDfs):
+        '''predict by average gaps of given dates (gapDf)
+
+        Notes:
+
+        Args: gap *dataframes
+
+        Return:
+
+        '''
+        # time slots
+        time_slots = range(46, 154, 12)
+
+        for i, gapDf in enumerate(gapDfs):
+            if i == 0:
+                gapDfSum = gapDf
+            else:
+                gapDfSum += gapDf
+
+        gapDfAverage = gapDfSum / len(gapDfs)
+
+        # filter by time_slots
+        gapPredictions = gapDfAverage.loc[np.array([True if item in range(46, 152, 12) else False for item in gapDf.index.get_level_values('time_slot')])]
+
+        return gapPredictions
+
+
+
+class evaluator():
+
+
+    def calculate_mape(self, true, predict):
+        '''calculate mape between true values and prediction values
+
+        Notes:
+
+        Args:
+            true: a gapDf dataframe
+            predict: a gapDf dataframe
+
+        Return: mape value
+
+
+        '''
+        # nonZeroGap = ((true['gap'] != 0).value_counts()).loc[True]
+        truePredictDf = ((true - predict) / true).applymap(lambda x: math.fabs(x)).replace(np.inf, np.nan)
+        mape = truePredictDf.sum() / truePredictDf.count()
+
+        return mape
+
+
+
+
+
+
+
 
