@@ -161,7 +161,7 @@ class transformer():
             arrays = [np.array(districtIdDict.values()), np.array(districtIdDict.keys())]
             tuples = list(zip(*arrays))
 
-            index = pd.MultiIndex.from_tuples(tuples, names=['district_id', 'time_slot'])
+            index = pd.MultiIndex.from_tuples(tuples, names=['districtNum', 'time_slot'])
 
             gapMIxDf = pd.DataFrame(gapSupDict.values(), columns=['gap'], index=index)
 
@@ -230,9 +230,37 @@ class evaluator():
         return mape
 
 
+def getCsv(gapDf, date):
+    '''get the csv printout variable according to given gapDf
+
+    Notes:
 
 
+    Argvs:
+        gapDf: the gap dataframe
+        date: the date info used as a tag
+
+    Return:
+        csvTemp: a variable used for printing out
+    '''
+    indexList = gapDf.index.tolist()
+    gapDf['district_id'] = [x[0] for x in indexList]
+    gapDf['time_slot'] = ['{}-{}'.format(date, x[1]) for x in indexList]
+    csvTemp = gapDf[['district_id', 'time_slot', 'gap']].to_csv(index=False, header=False)
+
+    return csvTemp
 
 
+def printCsv(label, predictDict):
+    '''
+    '''
+    fileOut = 'predict_{}'.format(label)
+    f = open(fileOut, 'w')
+    for item in predictDict.keys():
+
+        csvGet = getCsv(gapDf=predictDict[item], date=item)
+        f.write(csvGet)
+        # test()
+    f.close()
 
 
