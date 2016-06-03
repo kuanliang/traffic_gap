@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import math
+from load import load_clusterMap
 
 
 def get_y(date, **option):
@@ -47,10 +48,11 @@ def get_y(date, **option):
         # requestAnswerDf[['driver_id', 'order_id']].plot()
         requestAnswerDf['gap'] = requestAnswerDf['order_id'] - requestAnswerDf['driver_id']
         requestAnswerDf['district_id'] = hashToNumber[districtTuple[0]]
+        requestAnswerDf['slot'] = requestAnswerDf.index
+        requestAnswerDf['date'] = date
 
-        gapDf = requestAnswerDf[['district_id', 'order_id', 'driver_id', 'gap']]
-        gapDf.rename(columns = {'order_id': 'request_num', 'driver_id': 'answer_num'},
-                     index = lambda x: '{}-{}'.format(date, x), inplace=True)
+        gapDf = requestAnswerDf[['date', 'slot', 'district_id', 'order_id', 'driver_id', 'gap']]
+        gapDf.rename(columns = {'order_id': 'request_num', 'driver_id': 'answer_num'})
 
         # print '{}, size:{}'.format(hashToNum[districtTuple[0]], gapDf.shape)
         dfList.append(gapDf)
@@ -75,16 +77,21 @@ def transform_weatherData(date, **option):
 
     timeIndex = (weatherDf.index.hour * 60 + weatherDf.index.minute) / 10
     timeIndex += 1
-    weatherDf['time_period'] = timeIndex
+    weatherDf['slot'] = timeIndex
+
 
     date = weatherDf.index[0].strftime("%Y-%m-%d")
-    weatherDropDf = weatherDf.drop_duplicates('time_period')
-    # timeSlotList = ['{}-{}'.format(date, x) for x in weatherDropDf['time_period']]
-    weatherDropDf.index = weatherDropDf['time_period']
-    weatherDropDf.rename(index=lambda x: '{}-{}'.format(date, x), inplace=True)
+    weatherDropDf = weatherDf.drop_duplicates('slot')
+    weatherDropDf['date'] = date
+    # timeSlotList = ['{}-{}'.format(date, x) for x in weatherDropDf['slot']]
+    weatherDropDf.index = weatherDropDf['slot']
+    # weatherDropDf.rename(index=lambda x: '{}-{}'.format(date, x), inplace=True)
     weatherDropDf.index.name = 'time_slot'
+    # del weatherDropDf['time_period']
 
-    return weatherDropDf
+    weatherFinalDf = weatherDropDf[['date', 'slot', 'Weather', 'temperature', 'PM25']]
+
+    return weatherFinalDf
 
 def transform_trafficData(date, **option):
     '''
@@ -108,14 +115,65 @@ def transform_trafficData(date, **option):
 
     timeIndex += 1
 
-    trafficDf['time_slot'] = timeIndex
+    trafficDf['slot'] = timeIndex
 
     trafficDf['district_id'] = trafficDf['districtHash'].apply(lambda x: hashToNumber[x])
 
-    trafficDf.index = trafficDf['time_slot']
-    trafficDf.rename(index=lambda x: '{}-{}'.format(date, x), inplace=True)
+    trafficDf.index = trafficDf['slot']
+    # trafficDf.rename(index=lambda x: '{}-{}'.format(date, x), inplace=True)
 
-    trafficFinalDf = trafficDf[['district_id', 'traffic_level1', 'traffic_level2', 'traffic_level3', 'traffic_level4']]
+    trafficDf['date'] = date
+
+    trafficFinalDf = trafficDf[['date', 'slot', 'district_id', 'traffic_level1', 'traffic_level2', 'traffic_level3', 'traffic_level4']]
 
     #return trafficSlotDf
     return trafficFinalDf
+
+def filterTimeSlot(gapDf):
+    gapFilterDf = gapDf.loc[np.array([True if item in range(46, 152, 12) else False for item in\
+                                             gapDf.index.get_level_values('time_slot')])]
+    return gapFilterDf
+
+
+def create_matrix(**option):
+    '''
+
+    '''
+    trainDayList = ["%.2d" % i for i in range(1, 22)]
+    testDayList = range(22,32,2)
+    # dayList = ['01']
+    dfList = []
+    for day in trainDayList:
+        date = '2016-01-' + day
+        print 'transforming {} training data...'.format(date)
+        trafficSlotDf = transform_trafficData(date, folder='training')
+
+        # print trafficDf.index[0]
+        weatherSlotDf= transform_weatherData(date, folder='training')
+
+        ySlotDf = get_y(date, folder='training')
+
+        joinDf = trafficSlotDf.set_index('district_id', append=True).join(weatherSlotDf)\
+                              .join(ySlotDf.set_index('district_id', append=True))
+
+        dfList.append(joinDf)
+
+    finalTrainDf = pd.concat(dfList)
+
+    dfList = []
+    for day in testDayList:
+        date = '2016-01-' + str(day)
+        print 'trasforming {} testing data...'.format(date)
+        trafficSlotDf = transform_trafficData(date, folder='testing')
+
+        # print trafficDf.index[0]
+        weatherSlotDf= transform_weatherData(date, folder='testing')
+
+        joinDf = trafficSlotDf.set_index('district_id', append=True).join(weatherSlotDf)
+        dfList.append(joinDf)
+
+    finalTestDf = pd.concat(dfList)
+
+    return finalTrainDf, finalTestDf
+
+
