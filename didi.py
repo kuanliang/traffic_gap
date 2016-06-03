@@ -177,59 +177,79 @@ def get_gap(date, **option):
     return concatGapDf
 
 
-class predictor():
-    '''predict gap values by district and time_slot
+def transform_weatherData(date, **option):
+    '''
+    '''
+    if option['folder'] == 'testing':
+        filedir = 'season_1/test_set_1/weather_data/weather_data_' + date + '_test'
+    elif option['folder'] == 'training':
+        filedir = 'season_1/training_data/weather_data/weather_data_' + date
+
+    columnNames = ['Time', 'Weather', 'temperature', 'PM25']
+    weatherDf = pd.read_csv(filedir, sep='\t', header=None, names=columnNames,\
+                       index_col='Time', parse_dates=True)
+
+    timeIndex = (weatherDf.index.hour * 60 + weatherDf.index.minute) / 10
+    timeIndex += 1
+    weatherDf['time_period'] = timeIndex
+
+    date = weatherDf.index[0].strftime("%Y-%m-%d")
+    weatherDropDf = weatherDf.drop_duplicates('time_period')
+    # timeSlotList = ['{}-{}'.format(date, x) for x in weatherDropDf['time_period']]
+    weatherDropDf.index = weatherDropDf['time_period']
+    weatherDropDf.rename(index=lambda x: '{}-{}'.format(date, x), inplace=True)
+    weatherDropDf.index.name = 'time_slot'
+
+    return weatherDropDf
+
+
+def predict_by_average(*gapDfs):
+    '''predict by average gaps of given dates (gapDf)
+
+    Notes:
+
+    Args: gap *dataframes
+
+    Return:
 
     '''
-    def predict_by_average(self, *gapDfs):
-        '''predict by average gaps of given dates (gapDf)
+    # time slots
+    time_slots = range(46, 154, 12)
 
-        Notes:
+    for i, gapDf in enumerate(gapDfs):
+        if i == 0:
+            gapDfSum = gapDf
+        else:
+            gapDfSum += gapDf
 
-        Args: gap *dataframes
+    gapDfAverage = gapDfSum / len(gapDfs)
 
-        Return:
+    # filter by time_slots
+    gapPredictions = gapDfAverage.loc[np.array([True if item in range(46, 152, 12) else False for item in gapDf.index.get_level_values('time_slot')])]
 
-        '''
-        # time slots
-        time_slots = range(46, 154, 12)
-
-        for i, gapDf in enumerate(gapDfs):
-            if i == 0:
-                gapDfSum = gapDf
-            else:
-                gapDfSum += gapDf
-
-        gapDfAverage = gapDfSum / len(gapDfs)
-
-        # filter by time_slots
-        gapPredictions = gapDfAverage.loc[np.array([True if item in range(46, 152, 12) else False for item in gapDf.index.get_level_values('time_slot')])]
-
-        return gapPredictions
+    return gapPredictions
 
 
 
-class evaluator():
+
+def calculate_mape(true, predict):
+    '''calculate mape between true values and prediction values
+
+    Notes:
+
+    Args:
+        true: a gapDf dataframe
+        predict: a gapDf dataframe
+
+    Return: mape value
 
 
-    def calculate_mape(self, true, predict):
-        '''calculate mape between true values and prediction values
+    '''
+    # nonZeroGap = ((true['gap'] != 0).value_counts()).loc[True]
+    truePredictDf = ((true - predict) / true).applymap(lambda x: math.fabs(x)).replace(np.inf, np.nan)
+    mape = truePredictDf.sum() / truePredictDf.count()
 
-        Notes:
-
-        Args:
-            true: a gapDf dataframe
-            predict: a gapDf dataframe
-
-        Return: mape value
-
-
-        '''
-        # nonZeroGap = ((true['gap'] != 0).value_counts()).loc[True]
-        truePredictDf = ((true - predict) / true).applymap(lambda x: math.fabs(x)).replace(np.inf, np.nan)
-        mape = truePredictDf.sum() / truePredictDf.count()
-
-        return mape
+    return mape
 
 
 def getCsv(gapDf, date):
