@@ -140,7 +140,7 @@ def get_gap(date, **option):
         requestAnswerDf = districtDf.groupby('time_slot').count()
         # requestAnswerDf[['driver_id', 'order_id']].plot()
         requestAnswerDf['gap'] = requestAnswerDf['order_id'] - requestAnswerDf['driver_id']
-
+        requestAnswerDf['district_id'] = hashToNumber[districtTuple[0]]
         # gapDict = requestAnswerDf[['gap']].to_dict()
         # requestDict = requestAnswerDf[['order_id']].to_dict()
         # answerDict = requestAnswerDf[['driver_id']].to_dict()
@@ -164,9 +164,9 @@ def get_gap(date, **option):
 
         # gapMIxDf = pd.DataFrame(gapSupDict.values(), columns=['gap'], index=index)
 
-        gapDf = requestAnswerDf[['order_id', 'driver_id', 'gap']]
-        gapDf.rename(columns = {'order_id': 'request_num', 'driver_id': 'answer_num'})
-
+        gapDf = requestAnswerDf[['district_id', 'order_id', 'driver_id', 'gap']]
+        gapDf.rename(columns = {'order_id': 'request_num', 'driver_id': 'answer_num'},
+                     index = lambda x: '{}-{}'.format(date, x), inplace=True)
 
         # print '{}, size:{}'.format(hashToNum[districtTuple[0]], gapDf.shape)
         dfList.append(gapDf)
@@ -249,6 +249,7 @@ def getCsv(gapDf, date):
     gapDf['district_id'] = [x[0] for x in indexList]
     gapDf['time_slot'] = ['{}-{}'.format(date, x[1]) for x in indexList]
     csvTemp = gapDf[['district_id', 'time_slot', 'gap']].to_csv(index=False, header=False)
+
 
     return csvTemp
 
