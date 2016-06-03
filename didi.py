@@ -5,174 +5,176 @@ import math
 
 
 
-class dataLoader():
 
-    def load_clusterMap(self, path):
-        '''load district hash pair information
+def load_clusterMap(path):
+    '''load district hash pair information
 
-        Notes:
+    Notes:
 
-        Args:
-            dir: the directory path to the cluster_map file
+    Args:
+        dir: the directory path to the cluster_map file
 
-        Return:
-            hashToNumber: a dictionary, hash(key) to number(value)
-            numberToHash: a dictionary, number(key) to hash(value)
+    Return:
+        hashToNumber: a dictionary, hash(key) to number(value)
+        numberToHash: a dictionary, number(key) to hash(value)
 
-        '''
-        hashToNumber = {}
-        numberToHash = {}
-        with open(path, 'r') as f:
-            lines = f.readlines()
-            # dataLines = data.split('\n')
-            for line in lines:
-                line = line.strip()
-                # print line
-                hashToNumber[line.split('\t')[0]] = line.split('\t')[1]
-                numberToHash[line.split('\t')[1]] = line.split('\t')[0]
-
-        return hashToNumber, numberToHash
-
-class explorer():
-    '''the explorer will do some basic explore of the data
     '''
-    def __init__(self, numberToHash):
-        self.numberToHash = numberToHash
+    hashToNumber = {}
+    numberToHash = {}
+    with open(path, 'r') as f:
+        lines = f.readlines()
+        # dataLines = data.split('\n')
+        for line in lines:
+            line = line.strip()
+            # print line
+            hashToNumber[line.split('\t')[0]] = line.split('\t')[1]
+            numberToHash[line.split('\t')[1]] = line.split('\t')[0]
 
-    def plot_request_answer(self, *dateList, **district):
-        '''get request, answer, gap numbers of specified date
-
-        Notes:
-            if the dictionary district is not specified,
-
-            else,
-
-
-        Args:
-            dateList(list):
-
-            district(dictionary):
-
-        Return: None
-
-        '''
-
-        # column names
-        orderNames = ['order_id', 'driver_id', 'passenger_id', 'start_district_hash', 'dest_district_hash', 'Price', 'Time']
-
-        if not district:
-
-            filedir = 'season_1/training_data/order_data/order_data_' + dateList[0]
-
-            orderDf = pd.read_csv(filedir, sep='\t', header=None, names=orderNames, index_col='Time', parse_dates=True)
-
-            for startDistrict in orderDf.groupby('start_district_hash'):
-                # print startDistrict[0]
-                startDistrictDf = startDistrict[1]
-                # add a column to specify time_period index
-                timeIndex = (startDistrictDf.index.hour * 60 + startDistrictDf.index.minute) / 10
-                timeIndex += 1
-                startDistrictDf['time_period'] = timeIndex
-
-                # group by time_period column and count records (if driver_id == NaN, the record will not be counted )
-                requestAnswerDf = startDistrictDf.groupby('time_period').count()
-
-                # requestAnswerDf[['driver_id', 'order_id']].plot()
-                requestAnswerDf['gap'] = requestAnswerDf['order_id'] - requestAnswerDf['driver_id']
-
-                requestAnswerDf[['order_id','driver_id']].plot()
-
-        else:
-            for date in dateList:
-                filedir = 'season_1/training_data/order_data/order_data_' + date
-                orderDf = pd.read_csv(filedir, sep='\t', header=None, names=orderNames, index_col='Time', parse_dates=True)
-
-                # specify the start_district
-                orderHashDf = orderDf[orderDf['start_district_hash'] == self.numberToHash[district['districtNum']]]
-                timeIndex = (orderHashDf.index.hour * 60 + orderHashDf.index.minute) / 10
-                timeIndex += 1
-                orderHashDf['time_period'] = timeIndex
-
-                requestAnswerDf = orderHashDf.groupby('time_period').count()
-
-                requestAnswerDf['gap'] = requestAnswerDf['order_id'] - requestAnswerDf['driver_id']
-
-                requestAnswerDf[['order_id','driver_id']].plot()
+    return hashToNumber, numberToHash
 
 
 
-class transformer():
+def plot_request_answer(*dateList, **district):
+    '''get request, answer, gap numbers of specified date
+
+    Notes:
+        if the dictionary district is not specified,
+
+        else,
 
 
-    def __init__(self, hashToNumber, numberToHash):
-        self.hashToNumber = hashToNumber
-        self.numbertoHash = numberToHash
+    Args:
+        dateList(list):
 
-    def get_gap(self, date, **option):
-        '''get gaps by time slot according to specified date
+        district(dictionary):
 
-        Notes:
+    Return: None
 
-        Argus: date: e.g. 2016-01-01
+    '''
 
-        Return:
-            pandas DataFrame:
-                columns: time_slot, district, gap
-        '''
-        if option['folder'] == 'training':
-            filedir = 'season_1/training_data/order_data/order_data_' + date
-        elif option['folder'] == 'testing':
-            filedir = 'season_1/test_set_1/order_data/order_data_' + date + '_test'
-        else:
-            print 'Please spcified folder name [training or testing]!!'
+    # column names
+    orderNames = ['order_id', 'driver_id', 'passenger_id', 'start_district_hash', 'dest_district_hash', 'Price', 'Time']
 
-        orderNames = ['order_id', 'driver_id', 'passenger_id', 'start_district_hash', 'dest_district_hash', 'Price', 'Time']
+    if not district:
+
+        filedir = 'season_1/training_data/order_data/order_data_' + dateList[0]
 
         orderDf = pd.read_csv(filedir, sep='\t', header=None, names=orderNames, index_col='Time', parse_dates=True)
 
-        # add time_slot column to orderDf
-        timeSlotSeries = (orderDf.index.hour * 60 + orderDf.index.minute) / 10
-        orderDf['time_slot'] = timeSlotSeries + 1
+        for startDistrict in orderDf.groupby('start_district_hash'):
+            # print startDistrict[0]
+            startDistrictDf = startDistrict[1]
+            # add a column to specify time_period index
+            timeIndex = (startDistrictDf.index.hour * 60 + startDistrictDf.index.minute) / 10
+            timeIndex += 1
+            startDistrictDf['time_period'] = timeIndex
 
-        # initialize the empty pandas dataframe
-        # gapDf = pd.DataFrame()
-        dfList = []
-        for districtTuple in orderDf.groupby('start_district_hash'):
             # group by time_period column and count records (if driver_id == NaN, the record will not be counted )
-            districtDf = districtTuple[1]
-            requestAnswerDf = districtDf.groupby('time_slot').count()
+            requestAnswerDf = startDistrictDf.groupby('time_period').count()
+
             # requestAnswerDf[['driver_id', 'order_id']].plot()
             requestAnswerDf['gap'] = requestAnswerDf['order_id'] - requestAnswerDf['driver_id']
 
-            gapDict = requestAnswerDf[['gap']].to_dict()
+            requestAnswerDf[['order_id','driver_id']].plot()
 
-            # return gapDict
-            # suppliment infor to no order time_slot
-            districtIdDict = {index: self.hashToNumber[districtTuple[0]] for index in range(1, 145)}
-            gapSupDict = {index: gapDict['gap'][index] if index in gapDict['gap'].keys() else 0 for index in xrange(1, 145)}
+    else:
+        for date in dateList:
+            filedir = 'season_1/training_data/order_data/order_data_' + date
+            orderDf = pd.read_csv(filedir, sep='\t', header=None, names=orderNames, index_col='Time', parse_dates=True)
 
+            # specify the start_district
+            orderHashDf = orderDf[orderDf['start_district_hash'] == self.numberToHash[district['districtNum']]]
+            timeIndex = (orderHashDf.index.hour * 60 + orderHashDf.index.minute) / 10
+            timeIndex += 1
+            orderHashDf['time_period'] = timeIndex
 
-            # suppliment 0 to nonhappen time_slot
-            # dfList = []
-            # for index in range(1, 145):
-            #    if index not in gapDf.index:
-            #        gapDf.loc[index] = [hashToNum[districtTuple[0]], 0]
+            requestAnswerDf = orderHashDf.groupby('time_period').count()
 
-            arrays = [np.array(districtIdDict.values()), np.array(districtIdDict.keys())]
-            tuples = list(zip(*arrays))
+            requestAnswerDf['gap'] = requestAnswerDf['order_id'] - requestAnswerDf['driver_id']
 
-            index = pd.MultiIndex.from_tuples(tuples, names=['districtNum', 'time_slot'])
-
-            gapMIxDf = pd.DataFrame(gapSupDict.values(), columns=['gap'], index=index)
+            requestAnswerDf[['order_id','driver_id']].plot()
 
 
-            # print '{}, size:{}'.format(hashToNum[districtTuple[0]], gapDf.shape)
-            dfList.append(gapMIxDf)
-            # yield gapMIxDf
 
-        concatGapDf = pd.concat(dfList)
 
-        return concatGapDf
+
+def get_gap(date, **option):
+    '''get gaps by time slot according to specified date
+
+    Notes:
+
+    Argus: date: e.g. 2016-01-01
+
+    Return:
+        pandas DataFrame:
+            columns: time_slot, district, gap
+    '''
+
+
+    # get hashToNumber and numberToHash
+
+    hashToNumber, numberToHash = load_clusterMap('season_1/training_data/cluster_map/cluster_map')
+
+
+    if option['folder'] == 'training':
+        filedir = 'season_1/training_data/order_data/order_data_' + date
+    elif option['folder'] == 'testing':
+        filedir = 'season_1/test_set_1/order_data/order_data_' + date + '_test'
+    else:
+        print 'Please spcified folder name [training or testing]!!'
+
+    orderNames = ['order_id', 'driver_id', 'passenger_id', 'start_district_hash', 'dest_district_hash', 'Price', 'Time']
+
+    orderDf = pd.read_csv(filedir, sep='\t', header=None, names=orderNames, index_col='Time', parse_dates=True)
+
+    # add time_slot column to orderDf
+    timeSlotSeries = (orderDf.index.hour * 60 + orderDf.index.minute) / 10
+    orderDf['time_slot'] = timeSlotSeries + 1
+
+    # initialize the empty pandas dataframe
+    # gapDf = pd.DataFrame()
+    dfList = []
+    for districtTuple in orderDf.groupby('start_district_hash'):
+        # group by time_period column and count records (if driver_id == NaN, the record will not be counted )
+        districtDf = districtTuple[1]
+        requestAnswerDf = districtDf.groupby('time_slot').count()
+        # requestAnswerDf[['driver_id', 'order_id']].plot()
+        requestAnswerDf['gap'] = requestAnswerDf['order_id'] - requestAnswerDf['driver_id']
+
+        # gapDict = requestAnswerDf[['gap']].to_dict()
+        # requestDict = requestAnswerDf[['order_id']].to_dict()
+        # answerDict = requestAnswerDf[['driver_id']].to_dict()
+
+        # return gapDict
+        # suppliment info to no order time_slot
+        # districtIdDict = {index: hashToNumber[districtTuple[0]] for index in xrange(1, 145)}
+        # gapSupDict = {index: gapDict['gap'][index] if index in gapDict['gap'].keys() else 0 for index in xrange(1, 145)}
+
+
+        # suppliment 0 to nonhappen time_slot
+        # dfList = []
+        # for index in range(1, 145):
+        #    if index not in gapDf.index:
+        #        gapDf.loc[index] = [hashToNum[districtTuple[0]], 0]
+
+        # arrays = [np.array(districtIdDict.values()), np.array(districtIdDict.keys())]
+        # tuples = list(zip(*arrays))
+
+        # index = pd.MultiIndex.from_tuples(tuples, names=['districtNum', 'time_slot'])
+
+        # gapMIxDf = pd.DataFrame(gapSupDict.values(), columns=['gap'], index=index)
+
+        gapDf = requestAnswerDf[['order_id', 'driver_id', 'gap']]
+        gapDf.rename(columns = {'order_id': 'request_num', 'driver_id': 'answer_num'})
+
+
+        # print '{}, size:{}'.format(hashToNum[districtTuple[0]], gapDf.shape)
+        dfList.append(gapDf)
+        # yield gapMIxDf
+
+    concatGapDf = pd.concat(dfList)
+
+    return concatGapDf
 
 
 class predictor():
