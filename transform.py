@@ -23,6 +23,7 @@ def get_y(date, **option):
     hashToNumber, numberToHash = load_clusterMap('season_1/training_data/cluster_map/cluster_map')
 
 
+
     if option['folder'] == 'training':
         filedir = 'season_1/training_data/order_data/order_data_' + date
     elif option['folder'] == 'testing':
@@ -52,10 +53,39 @@ def get_y(date, **option):
         requestAnswerDf['date'] = date
 
         gapDf = requestAnswerDf[['date', 'slot', 'district_id', 'order_id', 'driver_id', 'gap']]
-        gapDf.rename(columns = {'order_id': 'request_num', 'driver_id': 'answer_num'})
+        gapDf.rename(columns = {'order_id': 'request_num', 'driver_id': 'answer_num'}, inplace=True)
+
+        if option['folder'] == 'training':
+            # add rolling window column
+            newColDf = gapDf[['request_num', 'answer_num', 'gap']]\
+                            .rolling(window=3, win_type='triang', center=True).mean()
+
+            colNameDict = {ori:'{}_rolling'.format(ori) for ori in newColDf.columns}
+
+            # rename column names with _rolling
+            newColDf.rename(columns=colNameDict, inplace=True)
+
+            # concate new columns (vertically concat two dataframe)
+            gapRollDf = pd.concat([gapDf, newColDf], axis=1)
+
+        elif option['folder'] == 'testing':
+            # specified test dates
+            testDatesList = range(46, 144, 12)
+            # add testing record and set it the same as previous record
+            for testDate in testDatesList:
+                record = gapDf[gapDf['slot'] == (testDate-1)]
+                # print record
+                # print '\n'
+                record['slot'] = testDate
+                gapDf.append(record)
+                # print gapDf
+                # print '\n'
+                gapRollDf = gapDf
+
+        # print gapRollDf
 
         # print '{}, size:{}'.format(hashToNum[districtTuple[0]], gapDf.shape)
-        dfList.append(gapDf)
+        dfList.append(gapRollDf)
         # yield gapMIxDf
 
     concatGapDf = pd.concat(dfList)
@@ -135,7 +165,7 @@ def filterTimeSlot(gapDf):
     return gapFilterDf
 
 
-def create_matrix(**option):
+def create_matrix():
     '''
 
     '''
@@ -153,10 +183,12 @@ def create_matrix(**option):
 
         ySlotDf = get_y(date, folder='training')
 
-        joinDf = trafficSlotDf.set_index('district_id', append=True).join(weatherSlotDf)\
-                              .join(ySlotDf.set_index('district_id', append=True))
+        tempDf = trafficSlotDf.merge(weatherSlotDf, how='left', on='slot')\
+                              .sort_values(by=['district_id', 'slot'])
+        tempFillDf = tempDf.fillna(method='ffill')
+        mergedDf = tempFillDf.merge(ySlotDf, how='left', on=['district_id', 'slot'])
 
-        dfList.append(joinDf)
+        dfList.append(mergedDf)
 
     finalTrainDf = pd.concat(dfList)
 
@@ -169,8 +201,15 @@ def create_matrix(**option):
         # print trafficDf.index[0]
         weatherSlotDf= transform_weatherData(date, folder='testing')
 
-        joinDf = trafficSlotDf.set_index('district_id', append=True).join(weatherSlotDf)
-        dfList.append(joinDf)
+        ySlotDf = get_y(date, folder='testing')
+
+        tempDf = trafficSlotDf.merge(weatherSlotDf, how='left', on='slot')\
+                              .sort_values(by=['district_id', 'slot'])
+        tempFillDf = tempDf.fillna(method='ffill')
+
+        mergedDf = tempFillDf.merge(ySlotDf, how='left', on=['district_id', 'slot'])
+
+        dfList.append(mergedDf)
 
     finalTestDf = pd.concat(dfList)
 
