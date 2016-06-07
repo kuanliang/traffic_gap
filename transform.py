@@ -4,6 +4,10 @@ import os
 import math
 from load import load_clusterMap
 
+from utility import fillTestRecord
+
+
+
 
 def get_y(date, **option):
     '''get gaps by time slot according to specified date
@@ -119,7 +123,14 @@ def transform_weatherData(date, **option):
     weatherDropDf.index.name = 'time_slot'
     # del weatherDropDf['time_period']
 
+
+
     weatherFinalDf = weatherDropDf[['date', 'slot', 'Weather', 'temperature', 'PM25']]
+
+
+    if option['folder'] == 'testing':
+        weatherFinalDf = fillTestRecord(weatherFinalDf)
+
 
     return weatherFinalDf
 
@@ -155,6 +166,9 @@ def transform_trafficData(date, **option):
     trafficDf['date'] = date
 
     trafficFinalDf = trafficDf[['date', 'slot', 'district_id', 'traffic_level1', 'traffic_level2', 'traffic_level3', 'traffic_level4']]
+
+
+    trafficFinalDf = fillTestRecord(trafficFinalDf)
 
     #return trafficSlotDf
     return trafficFinalDf
@@ -214,5 +228,9 @@ def create_matrix():
     finalTestDf = pd.concat(dfList)
 
     return finalTrainDf, finalTestDf
+
+
+
+
 
 
