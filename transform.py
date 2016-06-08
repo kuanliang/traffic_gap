@@ -167,8 +167,8 @@ def transform_trafficData(date, **option):
 
     trafficFinalDf = trafficDf[['date', 'slot', 'district_id', 'traffic_level1', 'traffic_level2', 'traffic_level3', 'traffic_level4']]
 
-
-    trafficFinalDf = fillTestRecord(trafficFinalDf)
+    if option['folder'] == 'testing':
+        trafficFinalDf = fillTestRecord(trafficFinalDf)
 
     #return trafficSlotDf
     return trafficFinalDf
