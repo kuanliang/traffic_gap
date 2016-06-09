@@ -56,7 +56,7 @@ def predict_by_window(yDisDf):
             rowList.append(rowGet)
 
         windowDf = pd.DataFrame(rowList)
-        windowDf.fillna(method='bfill', inplace=True)
+        # windowDf.fillna(method='bfill', inplace=True)
         # rename columns names (add tag: window_type to request_num, answer_num and gap)
         # set up name dictionary
         colDict = {col:'{}_{}'.format(winType, col) for col in colList}
@@ -68,7 +68,7 @@ def predict_by_window(yDisDf):
         headColDf = headColDf.join(windowSubDf)
 
     # add a gap_mean column that take average of all gap values
-    headColDf['gap_mean'] = headColDf[['{}_gap'.format(winType) for winType in windowList]].mean(axis=1)
+    headColDf['win_mean'] = headColDf[['{}_gap'.format(winType) for winType in windowList]].mean(axis=1)
 
     return headColDf
 
@@ -92,12 +92,83 @@ def sum_predict_by_window():
         datesPredictDfList.append(districtsResultDf)
 
     allPredictDf = pd.concat(datesPredictDfList)
-    return allPredictDf
+
+    # allPredictDf[['date', 'district_id', 'win_mean']]
+
+    allPredictDf.index.name = 'time_slot'
+
+    finalDf = allPredictDf.set_index('district_id', append=True)[['date', 'win_mean']]
+
+    # allPredictDf['date_slot'] = ["{}-{}".format(date, slot) for date, slot in\
+    #                                 zip(allPredictDf['date'], allPredictDf.index)]
+
+    # finalDf = allPredictDf[['date_slot', 'district_id', 'win_mean']]
+
+    return finalDf
 
 
 
+def predict_by_average(*dates):
+
+    count = 0
+    for date in dates:
+
+        yDf = get_y(date, folder='training')
+        distDfList = []
+        renameColDict = {col:'{}_{}'.format(date, col) for col in ['request_num', 'answer_num', 'gap']}
+        for district, yDisDf in yDf.groupby('district_id'):
+
+            disDf = yDisDf.loc[range(1, 145)]\
+                          .fillna(method='bfill')\
+                          .fillna(method='ffill')\
+                          .loc[range(46, 144, 12)][['district_id', 'request_num', 'answer_num', 'gap']]\
+                          .rename(columns = renameColDict)
+
+            distDfList.append(disDf)
+
+        dateAveDf = pd.concat(distDfList)
+
+        dateAveIndDf = dateAveDf.set_index('district_id', append=True)
+
+        if count == 0:
+            finalDateAveDf = dateAveIndDf
+        else:
+            finalDateAveDf = finalDateAveDf.join(dateAveIndDf, how='inner')
+        count += 1
 
 
+    finalOnlyDateAveDf = finalDateAveDf[['{}_gap'.format(date) for date in dates]]
+    finalOnlyAveSeries = finalOnlyDateAveDf.mean(axis=1)
+    finalOnlyAveDf = pd.DataFrame(finalOnlyAveSeries, columns=['ave_gap'])
+
+
+    return finalOnlyAveDf
+
+
+def sum_predict_by_average():
+
+    dateRefDict = {22: ['15', '08'],\
+                   24: ['17', '10'],\
+                   26: ['05', '12', '19'],\
+                   28: ['07', '14', '21'],\
+                   30: ['09', '16']}
+
+
+    datesPredictDfList = []
+
+    for i in range(22, 32, 2):
+        date = '2016-01-{}'.format(i)
+        print 'processing {} data...'.format(date)
+
+        dateRefList = dateRefDict[i]
+        dates = ['2016-01-{}'.format(date) for date in dateRefList]
+
+        dateDf = predict_by_average(*dates)
+
+        datesPredictDfList.append(dateDf)
+
+    finalDf = pd.concat(datesPredictDfList)
+    return finalDf
 
 
 
