@@ -27,6 +27,8 @@ def predict_by_window(yDisDf):
     date = yDisDf['date'].iloc[0]
     districtId = yDisDf['district_id'].iloc[0]
     headColDf = pd.DataFrame(index = [i for i in range(46, 146, 12)])
+    headColDf['date'] = date
+    headColDf['district_id'] = districtId
 
     for winType in windowList:
 
@@ -59,7 +61,33 @@ def predict_by_window(yDisDf):
 
         headColDf = headColDf.join(windowSubDf)
 
+    # add a gap_mean column that take average of all gap values
+    headColDf['gap_mean'] = headColDf[['{}_gap'.format(winType) for winType in windowList]].mean(axis=1)
+
     return headColDf
+
+def sum_predict_by_window():
+
+    datePredictDfList = []
+
+    for date in range(22, 32, 2):
+        yDf = get_y(date, folder='testing')
+
+        districtsPredictDfList = []
+
+        for districtId, yDisDf in yDf.groupby('district_id')
+            winPredictDf = predict_by_window(yDisDf)
+            districtPredictDfList.append(winPredictDf)
+
+        districtsResultDf = pd.concat(districtPredictDfList)
+        datesPredictDfList.append(districtsResultDf)
+
+    allPredcitDf = pd.concat(datesPredictDfList)
+    return allPredcitDf
+
+
+
+
 
 
 
