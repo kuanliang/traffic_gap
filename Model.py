@@ -35,6 +35,7 @@ def predict_by_window(yDisDf):
         windowFunDf = yDisDf.rolling(window=3, win_type=winType).mean()
         rowList = []
         for index in range(46, 144, 12):
+            # print 'processing slot {}'.format(index)
             # check whether the row exist
             if (index-1) in yDisDf.index:
                 rowGet = windowFunDf.loc[index-1]
@@ -43,14 +44,19 @@ def predict_by_window(yDisDf):
                 rowGet = windowFunDf.loc[index-2]
                 rowGet.name = index
             elif (index-3) in yDisDf.index:
-                rowGet = windowFunDf.loc[index-2]
+                rowGet = windowFunDf.loc[index-3]
                 rowGet.name = index
             else:
                 print 'something wrong!!!'
+                # assign a row record and make all values np.NaN
+                rowGet = windowFunDf.iloc[0]
+                for col in rowGet.keys():
+                    rowGet['col'] = np.NaN
 
             rowList.append(rowGet)
 
         windowDf = pd.DataFrame(rowList)
+        windowDf.fillna(method='bfill', inplace=True)
         # rename columns names (add tag: window_type to request_num, answer_num and gap)
         # set up name dictionary
         colDict = {col:'{}_{}'.format(winType, col) for col in colList}
@@ -68,22 +74,25 @@ def predict_by_window(yDisDf):
 
 def sum_predict_by_window():
 
-    datePredictDfList = []
+    datesPredictDfList = []
 
-    for date in range(22, 32, 2):
+    for i in range(22, 32, 2):
+        date = '2016-01-{}'.format(i)
+        print 'processing {} data...'.format(date)
         yDf = get_y(date, folder='testing')
 
         districtsPredictDfList = []
 
-        for districtId, yDisDf in yDf.groupby('district_id')
+        for districtId, yDisDf in yDf.groupby('district_id'):
+            print 'processing {} data...'.format(districtId)
             winPredictDf = predict_by_window(yDisDf)
-            districtPredictDfList.append(winPredictDf)
+            districtsPredictDfList.append(winPredictDf)
 
-        districtsResultDf = pd.concat(districtPredictDfList)
+        districtsResultDf = pd.concat(districtsPredictDfList)
         datesPredictDfList.append(districtsResultDf)
 
-    allPredcitDf = pd.concat(datesPredictDfList)
-    return allPredcitDf
+    allPredictDf = pd.concat(datesPredictDfList)
+    return allPredictDf
 
 
 
