@@ -128,7 +128,7 @@ def predict_by_average(*dates):
 
         dateAveDf = pd.concat(distDfList)
 
-        dateAveIndDf = dateAveDf.set_index('district_id', append=True)
+        dateAveIndDf = dateAveDf.set_index(['district_id'], append=True)
 
         if count == 0:
             finalDateAveDf = dateAveIndDf
@@ -138,9 +138,12 @@ def predict_by_average(*dates):
 
 
     finalOnlyDateAveDf = finalDateAveDf[['{}_gap'.format(date) for date in dates]]
+    # return finalOnlyDateAveDf
     finalOnlyAveSeries = finalOnlyDateAveDf.mean(axis=1)
+    # dateSeries = finalDateAveDf['date']
     finalOnlyAveDf = pd.DataFrame(finalOnlyAveSeries, columns=['ave_gap'])
-
+    # finalOnlyAveDf = finalOnlyDateAveDf[[]]
+    # finalOnlyAveDf['ave_mean'] = finalOnlyAveSeries
 
     return finalOnlyAveDf
 
@@ -161,13 +164,17 @@ def sum_predict_by_average():
         print 'processing {} data...'.format(date)
 
         dateRefList = dateRefDict[i]
-        dates = ['2016-01-{}'.format(date) for date in dateRefList]
+        rDates = ['2016-01-{}'.format(rDate) for rDate in dateRefList]
 
-        dateDf = predict_by_average(*dates)
+        dateDf = predict_by_average(*rDates)
+
+        dateDf['date'] = date
 
         datesPredictDfList.append(dateDf)
 
     finalDf = pd.concat(datesPredictDfList)
+    finalDf.set_index('date', append=True, inplace=True)
+
     return finalDf
 
 
